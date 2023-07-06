@@ -10,6 +10,7 @@ contract VaultTest is Test {
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address whitehat = vm.addr(1);
+    address operator = vm.addr(2);
     address feeTo = vm.addr(11);
 
     function setUp() public {
@@ -22,23 +23,31 @@ contract VaultTest is Test {
     }
 
     function testAddCase() public {
+        vault.setParams(feeTo, 101, operator);
         bytes16 uuid = 0x12345678901234567890123456789012;
+        vm.expectRevert("caller is not the operator");
+        vault.addCase(uuid, whitehat);
+
+        vm.startPrank(operator);
         uint caseId = vault.addCase(uuid, whitehat);
         assertEq(caseId, 0);
+        vm.stopPrank();
     }
 
     function testSetParams() public {
-        vault.setParams(feeTo, 101);
+        vault.setParams(feeTo, 101, operator);
         assertEq(vault.feeTo(), feeTo);
         assertEq(vault.basisPointsRate(), 101);
+        assertEq(vault.operator(), operator);
     }
 
     function testDepositAndPay() public {
-        vault.setParams(feeTo, 500);
+        vault.setParams(feeTo, 500, operator);
         address payer = vm.addr(2);
         vm.label(payer, "Payer");
         deal(USDC, payer, 1000000);
         bytes16 uuid = 0x12345678901234567890123456789012;
+        vm.prank(operator);
         uint caseId = vault.addCase(uuid, whitehat);
 
         // payer deposit
@@ -62,12 +71,13 @@ contract VaultTest is Test {
     }
 
     function testDepositAndMultiPay() public {
-        vault.setParams(feeTo, 500);
+        vault.setParams(feeTo, 500, operator);
         address payer = vm.addr(2);
         vm.label(payer, "Payer");
         deal(USDC, payer, 1000000);
         deal(WETH, payer, 1000000);
         bytes16 uuid = 0x12345678901234567890123456789012;
+        vm.prank(operator);
         uint caseId = vault.addCase(uuid, whitehat);
 
         // payer deposit
@@ -101,11 +111,12 @@ contract VaultTest is Test {
     }
 
     function testOtherPayToWhitehat() public {
-        vault.setParams(feeTo, 500);
+        vault.setParams(feeTo, 500, operator);
         address payer = vm.addr(2);
         vm.label(payer, "Payer");
         deal(USDC, payer, 1000000);
         bytes16 uuid = 0x12345678901234567890123456789012;
+        vm.prank(operator);
         uint caseId = vault.addCase(uuid, whitehat);
 
         // payer deposit

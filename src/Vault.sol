@@ -9,6 +9,7 @@ contract Vault is Ownable {
     using SafeMath for uint;
     using SafeERC20 for IERC20;
 
+    address public operator;
     address public feeTo;
     uint public basisPointsRate = 500;
 
@@ -26,7 +27,8 @@ contract Vault is Ownable {
     function addCase(
         bytes32 _uuid,
         address _whiteHat
-    ) public onlyOwner returns (uint caseId) {
+    ) public returns (uint caseId) {
+        require(msg.sender == operator, "caller is not the operator");
         caseId = allCases.length;
         CaseInfo storage _case = allCases.push();
         _case.whiteHat = _whiteHat;
@@ -37,10 +39,12 @@ contract Vault is Ownable {
 
     function setParams(
         address _feeTo,
-        uint _basisPointsRate
+        uint _basisPointsRate,
+        address _operator
     ) external onlyOwner {
         feeTo = _feeTo;
         basisPointsRate = _basisPointsRate;
+        operator = _operator;
     }
 
     function allCasesLength() external view returns (uint) {
