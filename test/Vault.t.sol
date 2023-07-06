@@ -8,13 +8,14 @@ contract VaultTest is Test {
     using SafeMath for uint;
     Vault public vault;
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address whitehat = vm.addr(1);
     address feeTo = vm.addr(11);
 
     function setUp() public {
-        vm.createSelectFork("https://rpc.flashbots.net", 17007841);
+        vm.createSelectFork("https://rpc.flashbots.net", 17607841);
         vm.label(USDC, "USDC");
+        vm.label(WETH, "WETH");
         vault = new Vault();
         vm.label(address(vault), "Vault");
         vm.label(whitehat, "Whitehat");
@@ -22,7 +23,6 @@ contract VaultTest is Test {
 
     function testAddCase() public {
         bytes16 uuid = 0x12345678901234567890123456789012;
-        // address whitehat = vm.addr(1);
         uint caseId = vault.addCase(uuid, whitehat);
         assertEq(caseId, 0);
     }
@@ -61,6 +61,45 @@ contract VaultTest is Test {
         assertEq(IERC20(USDC).balanceOf(whitehat), amount.sub(fee));
     }
 
+    function testDepositAndMultiPay() public {
+        vault.setParams(feeTo, 500);
+        address payer = vm.addr(2);
+        vm.label(payer, "Payer");
+        deal(USDC, payer, 1000000);
+        deal(WETH, payer, 1000000);
+        bytes16 uuid = 0x12345678901234567890123456789012;
+        uint caseId = vault.addCase(uuid, whitehat);
+
+        // payer deposit
+        vm.startPrank(payer);
+        uint amount = 1000;
+        IERC20(USDC).approve(address(vault), amount);
+        IERC20(WETH).approve(address(vault), amount);
+
+
+        vault.deposit(caseId, USDC, 1000);
+        vault.deposit(caseId, WETH, 1000);
+        vm.stopPrank();
+
+        assertEq(IERC20(USDC).balanceOf(address(vault)), amount);
+        assertEq(IERC20(WETH).balanceOf(address(vault)), amount);
+
+        // payer pay to whithat
+        vm.startPrank(payer);
+        vault.payToWhiteHat(caseId, USDC, 200);
+        vault.payToWhiteHat(caseId, USDC, amount - 200);
+        vault.payToWhiteHat(caseId, WETH, 200);
+        vault.payToWhiteHat(caseId, WETH, amount - 200);
+        vm.stopPrank();
+
+        assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
+        uint fee = amount.mul(500).div(10000);
+        assertEq(IERC20(USDC).balanceOf(feeTo), fee);
+        assertEq(IERC20(USDC).balanceOf(whitehat), amount.sub(fee));
+        assertEq(IERC20(WETH).balanceOf(feeTo), fee);
+        assertEq(IERC20(WETH).balanceOf(whitehat), amount.sub(fee));
+    }
+
     function testOtherPayToWhitehat() public {
         vault.setParams(feeTo, 500);
         address payer = vm.addr(2);
@@ -80,7 +119,7 @@ contract VaultTest is Test {
         // other can not pay to whithat
         address other = vm.addr(3);
         vm.startPrank(other);
-        vm.expectRevert("not enough balance");
+        vm.expectRevert("no enough balance");
         vault.payToWhiteHat(caseId, USDC, amount);
         vm.stopPrank();
     }

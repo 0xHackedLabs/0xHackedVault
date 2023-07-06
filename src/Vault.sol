@@ -15,8 +15,7 @@ contract Vault is Ownable {
     struct CaseInfo {
         bytes32 uuid;
         address whiteHat;
-        // user => token => amount
-        mapping(address => mapping(address => uint)) tokenBalances;
+        mapping(address sender => mapping(address token => uint amount)) tokenBalances;
     }
     CaseInfo[] public allCases;
 
@@ -32,7 +31,7 @@ contract Vault is Ownable {
         CaseInfo storage _case = allCases.push();
         _case.whiteHat = _whiteHat;
         _case.uuid = _uuid;
-        emit CaseCreated(_whiteHat, bytes16(_uuid), caseId);
+        emit CaseCreated(_whiteHat, _uuid, caseId);
         return caseId;
     }
 
